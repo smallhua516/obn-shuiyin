@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>水印处理工具</title>
+  <!-- 引入Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- 引入Font Awesome图标 -->
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <!-- 引入jsPDF实现PDF合成 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script>
+    // Tailwind配置
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#165DFF',
+            secondary: '#6B7280',
+            light: '#F3F4F6',
+            dark: '#1F2937'
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          },
+        },
+      }
+    }
+  </script>
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .content-auto {
+        content-visibility: auto;
+      }
+      .scrollbar-hide {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+      .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+      }
+      .watermark-area {
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      /* 水印左/右对齐基础样式，统一基准线 */
+      .watermark-text-left {
+        position: absolute;
+        pointer-events: none;
+        z-index: 10;
+        white-space: pre-line;
+        transform-origin: left center;
+        user-select: none;
+        text-align: left;
+      }
+      .watermark-text-right {
+        position: absolute;
+        pointer-events: none;
+        z-index: 10;
+        white-space: pre-line;
+        transform-origin: right center;
+        user-select: none;
+        text-align: right;
+      }
+      /* 预览图片：核心！完整显示，容器已匹配宽高比，无裁切无变形 */
+      .preview-img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+      /* 手动输入框样式 */
+      .size-input {
+        width: 60px;
+        display: inline-block;
+        text-align: center;
+        border: none;
+        background: transparent;
+        color: #165DFF;
+        font-weight: 500;
+        outline: none;
+        padding: 0 2px;
+        border-bottom: 1px solid #165DFF;
+        cursor: pointer;
+      }
+      .size-input:focus {
+        outline: 1px solid #165DFF30;
+        border-radius: 2px;
+        border-bottom: 1px solid #165DFF;
+      }
+      /* 图片序号输入框：固定尺寸，永不遮挡，与图片保持间距 */
+      .order-input {
+        width: 36px;
+        height: 36px;
+        text-align: center;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        color: #165DFF;
+        font-weight: 600;
+        outline: none;
+        margin: 12px auto 0;
+        flex-shrink: 0;
+        display: block;
+      }
+      .order-input:focus {
+        border-color: #165DFF;
+        box-shadow: 0 0 0 2px rgba(22, 93, 255, 0.1);
+      }
+      /* 上传区专属样式 */
+      .upload-area {
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      /* 预览卡片容器：自适应图片尺寸，编号框独立 */
+      .preview-card-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+        gap: 0;
+      }
+      /* 图片展示容器：核心！根据图片真实宽高比动态计算，适配完整显示 */
+      .img-show-wrap {
+        position: relative;
+        width: 100%;
+        max-height: 320px; /* 限制最大高度，避免单张图片过高挤压其他卡片 */
+        background: #f9fafb;
+        border-radius: 8px;
+        overflow: hidden;
+        flex-shrink: 0;
+      }
+      /* 新增：PDF命名弹窗样式，适配整体风格 */
+      .pdf-name-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+      .pdf-name-modal-content {
+        background: white;
+        border-radius: 12px;
+        padding: 24px;
+        width: 100%;
+        max-width: 400px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+      }
+      .pdf-name-modal-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #1F2937;
+        margin-bottom: 16px;
+        text-align: center;
+      }
+      .pdf-name-input-wrap {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 20px;
+      }
+      .pdf-name-input {
+        flex: 1;
+        padding: 10px 12px;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        outline: none;
+        font-size: 14px;
+      }
+      .pdf-name-input:focus {
+        border-color: #165DFF;
+        box-shadow: 0 0 0 2px rgba(22, 93, 255, 0.1);
+      }
+      .pdf-name-suffix {
+        color: #6B7280;
+        font-size: 14px;
+      }
+      .pdf-name-modal-btns {
+        display: flex;
+        gap: 12px;
+      }
+      .pdf-name-btn {
+        flex: 1;
+        padding: 10px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: none;
+      }
+      .pdf-name-btn-cancel {
+        background: #F3F4F6;
+        color: #1F2937;
+      }
+      .pdf-name-btn-cancel:hover {
+        background: #E5E7EB;
+      }
+      .pdf-name-btn-confirm {
+        background: #165DFF;
+        color: white;
+      }
+      .pdf-name-btn-confirm:hover {
+        background: #165DFF/90;
+      }
+      .pdf-name-btn-default {
+        background: #22C55E;
+        color: white;
+      }
+      .pdf-name-btn-default:hover {
+        background: #22C55E/90;
+      }
+      /* 新增：辅助提示文字样式，统一视觉 */
+      .helper-tip {
+        font-size: 10px;
+        color: #9CA3AF;
+        margin-left: 6px;
+        font-weight: 400;
+      }
+    }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans">
+  <div class="container mx-auto px-4 py-8 max-w-7xl">
+    <!-- 标题logo+文字 -->
+    <h1 class="text-[clamp(1.8rem,3vw,2.5rem)] font-bold text-center text-dark mb-8 flex items-center justify-center gap-4">
+      <img 
+        src="https://s41.ax1x.com/2026/01/03/pZUjfv6.png" 
+        alt="欧百娜logo" 
+        class="h-[1.4em] w-auto object-contain"
+      >
+      水印处理工具
+    </h1>
+
+    <!-- 主布局：左右分栏 -->
+    <div class="flex flex-col lg:flex-row gap-6 h-[calc(100vh-120px)]">
+      <!-- 左侧：水印调整区 -->
+      <div class="lg:w-1/3 bg-white rounded-xl shadow-md p-6 flex flex-col gap-5 overflow-y-auto scrollbar-hide">
+        <h2 class="text-xl font-semibold text-dark border-b pb-3 flex items-center">
+          <i class="fa fa-sliders text-primary mr-2"></i>水印参数设置
+        </h2>
+
+        <!-- 图片上传：仅此处支持拖拽上传 -->
+        <div class="bg-light rounded-lg p-4">
+          <h3 class="text-sm font-medium text-secondary mb-3">批量上传图片</h3>
+          <label id="upload-area" class="upload-area flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+            <div class="flex flex-col items-center justify-center pt-5 pb-6 px-3 text-center">
+              <i class="fa fa-cloud-upload text-3xl text-gray-400 mb-2"></i>
+              <p class="mb-1 text-sm text-gray-600"><span class="font-semibold">点击上传</span> 或拖拽图片至此处</p>
+              <p class="text-xs text-gray-500">支持JPG、PNG、WEBP格式</p>
+            </div>
+            <input id="image-upload" type="file" class="hidden" accept="image/jpeg,image/png,image/webp" multiple />
+          </label>
+          <div id="upload-tips" class="mt-3 text-xs text-green-600 hidden">
+            <i class="fa fa-check-circle"></i> <span id="upload-count">0</span> 张图片已上传
+            <span class="ml-2 text-xs text-gray-500">编辑图片下方编号调整导出顺序（1为第一张）</span>
+          </div>
+        </div>
+
+        <!-- 水印文字（支持换行）- 高度2行半 h-16 -->
+        <div>
+          <label for="watermark-text" class="block text-sm font-medium text-secondary mb-2">
+            水印文字 <span class="text-red-500">*</span>（Enter换行）
+          </label>
+          <textarea 
+            id="watermark-text" 
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all resize-none h-16"
+            placeholder="请输入水印文字，按Enter实现换行&#10;示例：&#10;公司内部使用&#10;2025-01-01"
+          >仅限（xxxxx公司、单位）
+采购产品质量证明使用</textarea>
+        </div>
+
+        <!-- 水印大小：滑块+手动输入 双调节 -->
+        <div>
+          <label class="block text-sm font-medium text-secondary mb-2">
+            水印大小：
+            <input 
+              type="text" 
+              id="size-input" 
+              class="size-input" 
+              value="12"
+              maxlength="5"
+            >
+            <span class="text-primary"> px</span>
+          </label>
+          <input 
+            type="range" 
+            id="watermark-size" 
+            min="1" 
+            value="12" 
+            step="1"
+            class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary"
+          >
+        </div>
+
+        <!-- 水印倾斜角度 - 添加重合调整辅助提示 -->
+        <div>
+          <label for="watermark-rotate" class="block text-sm font-medium text-secondary mb-2">
+            水印倾斜角度：<span id="rotate-value" class="text-primary">-27</span> °
+            <span class="helper-tip">（若水印重合时可用此调整）</span>
+          </label>
+          <input 
+            type="range" 
+            id="watermark-rotate" 
+            min="-45" 
+            max="45" 
+            value="-27" 
+            class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary"
+          >
+        </div>
+
+        <!-- 水印透明度 -->
+        <div>
+          <label for="watermark-opacity" class="block text-sm font-medium text-secondary mb-2">
+            水印透明度：<span id="opacity-value" class="text-primary">15</span> %
+          </label>
+          <input 
+            type="range" 
+            id="watermark-opacity" 
+            min="5" 
+            max="50" 
+            value="15" 
+            class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary"
+          >
+        </div>
+
+        <!-- 水印数量 -->
+        <div>
+          <label for="watermark-count" class="block text-sm font-medium text-secondary mb-2">
+            水印数量：<span id="count-value" class="text-primary">4</span> 个
+          </label>
+          <input 
+            type="range" 
+            id="watermark-count" 
+            min="3" 
+            max="6" 
+            value="4" 
+            class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary"
+          >
+        </div>
+
+        <!-- 导出按钮区 -->
+        <div class="mt-4">
+          <button 
+            id="export-pdf" 
+            class="w-full bg-green-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-green-600/90 active:bg-green-600/80 transition-all flex items-center justify-center"
+            disabled
+          >
+            <i class="fa fa-file-pdf-o mr-2"></i> 合成PDF并导出
+          </button>
+        </div>
+      </div>
+
+      <!-- 右侧：图片预览区（编号编辑排序） -->
+      <div class="lg:w-2/3 bg-white rounded-xl shadow-md p-6 flex flex-col overflow-hidden">
+        <h2 class="text-xl font-semibold text-dark border-b pb-3 flex items-center justify-center">
+          <i class="fa fa-eye text-primary mr-2"></i> 图片预览区（编辑编号调整导出顺序）
+        </h2>
+        <div 
+          id="preview-container" 
+          class="flex-1 mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto scrollbar-hide p-2"
+          style="grid-auto-rows: min-content;"
+        >
+          <!-- 空状态居中 -->
+          <div class="col-span-full flex items-center justify-center h-full w-full text-gray-400 flex-col py-10">
+            <i class="fa fa-picture-o text-5xl mb-3"></i>
+            <p>上传图片后在此处预览水印效果，编辑下方编号调整导出顺序</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 全局变量
+    const state = {
+      uploadedImages: [], // 图片信息 { file, src, img, cardWrap, orderInput, imgShowWrap, sortNum, imgRatio: 宽高比, renderWH: 容器实际渲染宽高, scaleRatio: 预览容器/图片原始的缩放比例 }
+      watermarkText: '仅限（xxxxx公司、单位）\n采购产品质量证明使用',
+      watermarkSize: 12,
+      watermarkRotate: -27,
+      watermarkOpacity: 15,
+      watermarkCount: 4,
+      isProcessing: false,
+      maxPreviewWidth: 0, // 预览单列最大宽度
+    };
+
+    // DOM元素
+    const el = {
+      imageUpload: document.getElementById('image-upload'),
+      uploadArea: document.getElementById('upload-area'),
+      uploadTips: document.getElementById('upload-tips'),
+      uploadCount: document.getElementById('upload-count'),
+      watermarkText: document.getElementById('watermark-text'),
+      watermarkSize: document.getElementById('watermark-size'),
+      sizeInput: document.getElementById('size-input'),
+      watermarkRotate: document.getElementById('watermark-rotate'),
+      rotateValue: document.getElementById('rotate-value'),
+      watermarkOpacity: document.getElementById('watermark-opacity'),
+      opacityValue: document.getElementById('opacity-value'),
+      watermarkCount: document.getElementById('watermark-count'),
+      countValue: document.getElementById('count-value'),
+      previewContainer: document.getElementById('preview-container'),
+      exportPdf: document.getElementById('export-pdf')
+    };
+
+    // 初始化
+    init();
+    function init() {
+      bindEvents();
+      updateCountText();
+      calculateMaxPreviewWidth();
+      // 窗口变化重新计算尺寸+渲染水印
+      window.addEventListener('resize', () => {
+        calculateMaxPreviewWidth();
+        resetImageContainerSize();
+        renderAllWatermark();
+      });
+    }
+
+    // 计算预览单列最大可用宽度（适配网格/内边距/间距）
+    function calculateMaxPreviewWidth() {
+      const containerPadding = 8;  // 预览容器内边距p-2=8px
+      const gridGap = 16;          // 网格间距gap-4=16px
+      const colCount = getCurrentColCount();
+      state.maxPreviewWidth = (el.previewContainer.clientWidth - containerPadding - (colCount - 1) * gridGap) / colCount;
+      state.maxPreviewWidth = Math.floor(state.maxPreviewWidth);
+    }
+
+    // 获取当前屏幕网格列数（响应式）
+    function getCurrentColCount() {
+      const width = window.innerWidth;
+      return width >= 1024 ? 3 : width >= 640 ? 2 : 1;
+    }
+
+    // 重置所有图片容器尺寸（窗口变化时）
+    function resetImageContainerSize() {
+      state.uploadedImages.forEach(item => {
+        setImageContainerSize(item.imgShowWrap, item.imgRatio, item);
+        // 重新计算缩放比例
+        item.scaleRatio = calculateScaleRatio(item);
+      });
+    }
+
+    // 核心：设置容器尺寸-适配图片完整显示，同时限制最大高度避免挤压
+    function setImageContainerSize(container, imgRatio, item = null) {
+      // 基础宽度=预览单列最大宽度
+      let wrapW = state.maxPreviewWidth;
+      // 基础高度=宽度/宽高比（按图片比例计算）
+      let wrapH = wrapW / imgRatio;
+      // 限制最大高度，避免单张图片过高
+      const maxWrapH = 320;
+      if (wrapH > maxWrapH) {
+        wrapH = maxWrapH;
+        wrapW = wrapH * imgRatio; // 高度受限后，按比例缩宽度
+      }
+      // 设置容器尺寸
+      container.style.width = `${wrapW}px`;
+      container.style.height = `${wrapH}px`;
+      // 存储实际渲染尺寸，供水印计算使用（避免重复获取DOM）
+      if (item) item.renderWH = { w: wrapW, h: wrapH };
+    }
+
+    // 核心：计算缩放比例 = 预览容器宽度 / 图片原始宽度（保证视觉比例一致）
+    function calculateScaleRatio(item) {
+      const { renderWH, img } = item;
+      // 取容器渲染宽度 / 图片原始宽度，作为统一缩放比例（宽高比一致，宽/高缩放比例相同）
+      return renderWH.w / img.width;
+    }
+
+    // 事件绑定
+    function bindEvents() {
+      // 图片上传-点击
+      el.imageUpload.addEventListener('change', handleImageUpload);
+      // 上传区拖拽
+      el.uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        el.uploadArea.classList.add('bg-gray-100', 'border-primary');
+      });
+      el.uploadArea.addEventListener('dragleave', () => {
+        el.uploadArea.classList.remove('bg-gray-100', 'border-primary');
+      });
+      el.uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        el.uploadArea.classList.remove('bg-gray-100', 'border-primary');
+        if (e.dataTransfer.files.length > 0 && e.dataTransfer.files[0].type.startsWith('image/')) {
+          el.imageUpload.files = e.dataTransfer.files;
+          handleImageUpload();
+        }
+      });
+
+      // 水印文字变化
+      el.watermarkText.addEventListener('input', (e) => {
+        state.watermarkText = e.target.value;
+        renderAllWatermark();
+      });
+
+      // 水印大小-滑块
+      el.watermarkSize.addEventListener('input', (e) => {
+        updateWatermarkSize(Number(e.target.value));
+      });
+      // 水印大小-手动输入
+      el.sizeInput.addEventListener('input', (e) => e.target.value = e.target.value.replace(/\D/g, ''));
+      el.sizeInput.addEventListener('blur', handleSizeInputConfirm);
+      el.sizeInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); handleSizeInputConfirm(); el.sizeInput.blur(); }
+      });
+
+      // 水印旋转/透明度/数量变化
+      el.watermarkRotate.addEventListener('input', (e) => {
+        state.watermarkRotate = Number(e.target.value);
+        el.rotateValue.textContent = state.watermarkRotate;
+        renderAllWatermark();
+      });
+      el.watermarkOpacity.addEventListener('input', (e) => {
+        state.watermarkOpacity = Number(e.target.value);
+        el.opacityValue.textContent = state.watermarkOpacity;
+        renderAllWatermark();
+      });
+      el.watermarkCount.addEventListener('input', (e) => {
+        state.watermarkCount = Number(e.target.value);
+        updateCountText();
+        renderAllWatermark();
+      });
+
+      // PDF导出 - 触发命名弹窗
+      el.exportPdf.addEventListener('click', showPdfNameModal);
+    }
+
+    // 水印大小-手动输入确认
+    function handleSizeInputConfirm() {
+      let newVal = Number(el.sizeInput.value) || 1;
+      newVal = Math.floor(Math.max(1, newVal));
+      updateWatermarkSize(newVal);
+    }
+
+    // 统一更新水印大小
+    function updateWatermarkSize(newVal) {
+      state.watermarkSize = newVal;
+      el.watermarkSize.value = newVal;
+      el.sizeInput.value = newVal;
+      renderAllWatermark();
+    }
+
+    // 更新水印数量文字
+    function updateCountText() {
+      el.countValue.textContent = state.watermarkCount;
+    }
+
+    // 处理图片上传
+    async function handleImageUpload() {
+      const files = el.imageUpload.files;
+      if (files.length === 0) return;
+
+      calculateMaxPreviewWidth();
+      // 清空原有数据和预览
+      state.uploadedImages = [];
+      el.previewContainer.innerHTML = '';
+      el.uploadTips.classList.remove('hidden');
+      el.uploadCount.textContent = files.length;
+      el.exportPdf.disabled = false;
+
+      // 遍历处理每张图片
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (!file.type.startsWith('image/')) continue;
+
+        try {
+          const src = URL.createObjectURL(file);
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.src = src;
+          await new Promise(resolve => img.onload = resolve);
+          
+          // 计算图片真实宽高比（宽/高）
+          const imgRatio = img.width / img.height;
+          // 创建预览卡片
+          const { cardWrap, orderInput, imgShowWrap } = createPreviewCard(img, file, i, i+1);
+          // 设置容器尺寸-适配图片完整显示
+          setImageContainerSize(imgShowWrap, imgRatio);
+          el.previewContainer.appendChild(cardWrap);
+
+          // 存储图片信息 + 计算并存储缩放比例
+          const imageItem = { 
+            file, src, img, cardWrap, orderInput, imgShowWrap,
+            sortNum: i+1, imgRatio, renderWH: { w: 0, h: 0 },
+            scaleRatio: 0 // 预览容器 / 图片原始的缩放比例
+          };
+          // 重新赋值实际渲染尺寸（刚设置完DOM，立即获取）
+          imageItem.renderWH = {
+            w: imgShowWrap.clientWidth,
+            h: imgShowWrap.clientHeight
+          };
+          // 计算并存储缩放比例
+          imageItem.scaleRatio = calculateScaleRatio(imageItem);
+          state.uploadedImages.push(imageItem);
+
+          // 绑定编号输入框事件
+          bindOrderInputEvent(imageItem);
+        } catch (err) {
+          alert(`第${i+1}张图片处理失败：${err.message}`);
+          continue;
+        }
+      }
+
+      // 首次渲染水印
+      renderAllWatermark();
+    }
+
+    // 创建预览卡片（图片完整显示+编号框独立）
+    function createPreviewCard(img, file, index, initNum) {
+      const cardWrap = document.createElement('div');
+      cardWrap.className = 'preview-card-wrap watermark-area mx-auto';
+
+      const imgShowWrap = document.createElement('div');
+      imgShowWrap.className = 'img-show-wrap flex items-center justify-center';
+
+      const imgEl = document.createElement('img');
+      imgEl.src = img.src;
+      imgEl.className = 'preview-img';
+      imgEl.alt = `上传的图片${index+1}`;
+
+      // 图片名称遮罩
+      const nameEl = document.createElement('div');
+      nameEl.className = 'absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-2 truncate z-10';
+      nameEl.textContent = file.name;
+
+      // 编号输入框
+      const orderInput = document.createElement('input');
+      orderInput.type = 'text';
+      orderInput.className = 'order-input';
+      orderInput.value = initNum;
+      orderInput.maxLength = 3;
+
+      // 组装
+      imgShowWrap.appendChild(imgEl);
+      imgShowWrap.appendChild(nameEl);
+      cardWrap.appendChild(imgShowWrap);
+      cardWrap.appendChild(orderInput);
+
+      return { cardWrap, orderInput, imgShowWrap };
+    }
+
+    // 绑定编号输入框事件（排序逻辑）
+    function bindOrderInputEvent(imageItem) {
+      const { orderInput } = imageItem;
+      orderInput.addEventListener('input', (e) => e.target.value = e.target.value.replace(/\D/g, ''));
+      orderInput.addEventListener('blur', () => handleOrderChange(imageItem));
+      orderInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); handleOrderChange(imageItem); orderInput.blur(); }
+      });
+    }
+
+    // 处理编号修改-核心排序逻辑
+    function handleOrderChange(imageItem) {
+      const { orderInput } = imageItem;
+      let newNum = Number(orderInput.value) || 1;
+      newNum = Math.floor(newNum);
+      const maxNum = state.uploadedImages.length;
+      newNum = Math.min(Math.max(1, newNum), maxNum);
+
+      // 重复编号处理-自动顺延
+      const duplicateItem = state.uploadedImages.find(item => item !== imageItem && item.sortNum === newNum);
+      if (duplicateItem) {
+        duplicateItem.sortNum += 1;
+        duplicateItem.orderInput.value = duplicateItem.sortNum;
+        handleOrderChange(duplicateItem);
+      }
+
+      // 更新编号并重新排序
+      imageItem.sortNum = newNum;
+      orderInput.value = newNum;
+      sortImagesByOrder();
+    }
+
+    // 按编号排序图片
+    function sortImagesByOrder() {
+      state.uploadedImages.sort((a, b) => a.sortNum - b.sortNum);
+      el.previewContainer.innerHTML = '';
+      state.uploadedImages.forEach(item => el.previewContainer.appendChild(item.cardWrap));
+      renderAllWatermark();
+    }
+
+    // 渲染所有图片水印
+    function renderAllWatermark() {
+      if (state.uploadedImages.length === 0) return;
+      state.uploadedImages.forEach(item => renderWatermark(item));
+    }
+
+    // 核心：为单张图片渲染水印-基于容器实际渲染尺寸，精准在图片范围内
+    function renderWatermark(item) {
+      const { imgShowWrap, renderWH, scaleRatio } = item;
+      // 移除原有水印
+      imgShowWrap.querySelectorAll('.watermark-text-left, .watermark-text-right').forEach(wm => wm.remove());
+
+      const { w: containerW, h: containerH } = renderWH;
+      const watermarkConfig = getLeftRightWatermarkConfig(containerW, containerH, state.watermarkCount);
+      const opacity = state.watermarkOpacity / 100;
+      // 预览用水印字号：直接使用设置的字号（适配缩小的预览容器）
+      const previewFontSize = state.watermarkSize;
+
+      // 创建水印-尺寸/位置精准匹配图片显示区域
+      watermarkConfig.forEach(config => {
+        const wm = document.createElement('div');
+        wm.className = config.align === 'left' ? 'watermark-text-left' : 'watermark-text-right';
+        wm.style.fontSize = `${previewFontSize}px`;
+        wm.style.color = `rgba(0, 0, 0, ${opacity})`;
+        wm.style.transform = `rotate(${state.watermarkRotate}deg)`;
+        wm.style.left = config.left ? `${config.left}px` : 'auto';
+        wm.style.right = config.right ? `${config.right}px` : 'auto';
+        wm.style.top = `${config.top}px`;
+        wm.textContent = state.watermarkText;
+        imgShowWrap.appendChild(wm);
+      });
+    }
+
+    // 计算水印左/右交替配置-基于容器实际尺寸，避免超出
+    function getLeftRightWatermarkConfig(w, h, count) {
+      const configs = [];
+      const sideMargin = w * 0.05;    // 左右边距加大，避免水印贴边
+      const topBottomMargin = h * 0.08; // 上下边距加大，保证水印在图片内
+      const availableH = h - 2 * topBottomMargin;
+      const stepH = availableH / (count + 1);
+
+      for (let i = 1; i <= count; i++) {
+        const align = i % 2 === 1 ? 'left' : 'right';
+        configs.push({
+          align: align,
+          left: align === 'left' ? sideMargin : null,
+          right: align === 'right' ? sideMargin : null,
+          top: topBottomMargin + stepH * i
+        });
+      }
+      return configs;
+    }
+
+    // ========== PDF命名弹窗 - 核心修改：互换直接导出和确认命名导出的顺序 ==========
+    // 显示PDF命名确认弹窗
+    function showPdfNameModal() {
+      if (state.isProcessing || state.uploadedImages.length === 0) return;
+      // 移除已有弹窗（防止重复创建）
+      const oldModal = document.querySelector('.pdf-name-modal');
+      if (oldModal) oldModal.remove();
+
+      // 创建弹窗容器
+      const modal = document.createElement('div');
+      modal.className = 'pdf-name-modal';
+      // 创建弹窗内容
+      const modalContent = document.createElement('div');
+      modalContent.className = 'pdf-name-modal-content';
+      // 弹窗标题
+      const modalTitle = document.createElement('div');
+      modalTitle.className = 'pdf-name-modal-title';
+      modalTitle.textContent = '是否需要命名pdf';
+      // 输入框容器
+      const inputWrap = document.createElement('div');
+      inputWrap.className = 'pdf-name-input-wrap';
+      // 命名输入框
+      const nameInput = document.createElement('input');
+      nameInput.className = 'pdf-name-input';
+      nameInput.placeholder = '请输入pdf名称';
+      nameInput.maxLength = 50;
+      // PDF后缀
+      const suffix = document.createElement('span');
+      suffix.className = 'pdf-name-suffix';
+      suffix.textContent = '.pdf';
+      // 按钮容器
+      const btnWrap = document.createElement('div');
+      btnWrap.className = 'pdf-name-modal-btns';
+      // 取消按钮
+      const cancelBtn = document.createElement('button');
+      cancelBtn.className = 'pdf-name-btn pdf-name-btn-cancel';
+      cancelBtn.textContent = '取消';
+      // 确认命名导出按钮
+      const confirmBtn = document.createElement('button');
+      confirmBtn.className = 'pdf-name-btn pdf-name-btn-confirm';
+      confirmBtn.textContent = '确认命名导出';
+      // 直接导出按钮（不命名）- 移到右侧
+      const defaultBtn = document.createElement('button');
+      defaultBtn.className = 'pdf-name-btn pdf-name-btn-default';
+      defaultBtn.textContent = '直接导出';
+
+      // 组装弹窗 - 核心：调整按钮顺序【取消 → 确认命名导出 → 直接导出】
+      inputWrap.appendChild(nameInput);
+      inputWrap.appendChild(suffix);
+      btnWrap.appendChild(cancelBtn);
+      btnWrap.appendChild(confirmBtn);
+      btnWrap.appendChild(defaultBtn);
+      modalContent.appendChild(modalTitle);
+      modalContent.appendChild(inputWrap);
+      modalContent.appendChild(btnWrap);
+      modal.appendChild(modalContent);
+      document.body.appendChild(modal);
+
+      // 绑定弹窗事件（功能不变）
+      cancelBtn.addEventListener('click', () => modal.remove());
+      defaultBtn.addEventListener('click', () => {
+        modal.remove();
+        exportOriginalPdf();
+      });
+      confirmBtn.addEventListener('click', () => {
+        const pdfName = nameInput.value.trim();
+        if (pdfName) {
+          modal.remove();
+          exportOriginalPdf(pdfName);
+        } else {
+          alert('请输入pdf名称后再导出！');
+          nameInput.focus();
+        }
+      });
+      nameInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') confirmBtn.click();
+      });
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.remove();
+      });
+      nameInput.focus();
+    }
+
+    // PDF导出-按编号排序，原画质合成
+    async function exportOriginalPdf(customName = '') {
+      if (state.isProcessing || state.uploadedImages.length === 0) return;
+      state.isProcessing = true;
+      el.exportPdf.innerHTML = '<i class="fa fa-spinner fa-spin mr-2"></i> 合成中...';
+      el.exportPdf.disabled = true;
+
+      try {
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({ unit: 'px', orientation: 'portrait', compress: true });
+        let firstPage = true;
+
+        // 按排序后的顺序合成
+        for (const item of state.uploadedImages) {
+          const canvas = await generateOriginalWatermarkCanvas(item);
+          const imgSrc = canvas.toDataURL('image/jpeg', 0.95);
+          const img = new Image();
+          img.src = imgSrc;
+          await new Promise(resolve => img.onload = resolve);
+
+          if (!firstPage) pdf.addPage();
+          firstPage = false;
+          pdf.internal.pageSize.setWidth(img.width);
+          pdf.internal.pageSize.setHeight(img.height);
+          pdf.addImage(img, 'JPEG', 0, 0, img.width, img.height);
+        }
+
+        // 处理PDF名称：有自定义名称则用自定义，无则用默认
+        const pdfFileName = customName ? `${customName}.pdf` : `水印图片_${new Date().getTime()}.pdf`;
+        // 下载PDF
+        pdf.save(pdfFileName);
+      } catch (err) {
+        alert(`PDF合成失败：${err.message}`);
+      } finally {
+        state.isProcessing = false;
+        el.exportPdf.innerHTML = '<i class="fa fa-file-pdf-o mr-2"></i> 合成PDF并导出';
+        el.exportPdf.disabled = false;
+      }
+    }
+
+    // 核心：生成原画质带水印Canvas-按缩放比例反向计算导出字号，保证视觉大小一致
+    async function generateOriginalWatermarkCanvas(item) {
+      const { img, scaleRatio } = item;
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+      // 复用水印配置逻辑，保证预览和导出水印位置/数量/样式一致
+      const watermarkConfig = getLeftRightWatermarkConfig(canvas.width, canvas.height, state.watermarkCount);
+      const opacity = state.watermarkOpacity / 100;
+      
+      // 核心：导出用水印字号 = 设置的字号 / 缩放比例 （反向放大，匹配图片原始尺寸）
+      const exportFontSize = state.watermarkSize / scaleRatio;
+
+      ctx.font = `${exportFontSize}px sans-serif`;
+      ctx.fillStyle = `rgba(0, 0, 0, ${opacity})`;
+      ctx.textBaseline = 'middle';
+
+      watermarkConfig.forEach(config => {
+        ctx.save();
+        ctx.textAlign = config.align;
+        const rotateX = config.align === 'left' ? config.left : canvas.width - config.right;
+        const rotateY = config.top;
+        ctx.translate(rotateX, rotateY);
+        ctx.rotate((state.watermarkRotate * Math.PI) / 180);
+        // 处理换行文字-适配导出字号的行高
+        state.watermarkText.split('\n').forEach((line, i) => {
+          ctx.fillText(line, 0, i * (exportFontSize + 8));
+        });
+        ctx.restore();
+      });
+
+      return canvas;
+    }
+  </script>
+</body>
+</html>
