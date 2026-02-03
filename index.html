@@ -132,14 +132,14 @@
         overflow: hidden;
         flex-shrink: 0;
       }
-      /* 新增：PDF命名弹窗样式，适配整体风格 */
+      /* PDF命名弹窗样式 - 恢复原始简洁版本 */
       .pdf-name-modal {
         position: fixed;
         top: 0;
         left: 0;
         right: 0;
         bottom: 0;
-        background: rgba(0,0,0,0.5);
+        background: rgba(0, 0, 0, 0.5);
         z-index: 1000;
         display: flex;
         align-items: center;
@@ -147,12 +147,12 @@
         padding: 20px;
       }
       .pdf-name-modal-content {
-        background: white;
-        border-radius: 12px;
+        background: #fff;
+        border-radius: 10px;
         padding: 24px;
         width: 100%;
         max-width: 400px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
       }
       .pdf-name-modal-title {
         font-size: 18px;
@@ -165,23 +165,26 @@
         display: flex;
         align-items: center;
         gap: 8px;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 0 12px;
+        height: 44px;
         margin-bottom: 20px;
       }
       .pdf-name-input {
         flex: 1;
-        padding: 10px 12px;
-        border: 1px solid #e5e7eb;
-        border-radius: 8px;
+        height: 100%;
+        border: none;
         outline: none;
-        font-size: 14px;
+        font-size: 16px;
+        color: #1F2937;
       }
-      .pdf-name-input:focus {
-        border-color: #165DFF;
-        box-shadow: 0 0 0 2px rgba(22, 93, 255, 0.1);
+      .pdf-name-input::placeholder {
+        color: #9CA3AF;
       }
       .pdf-name-suffix {
-        color: #6B7280;
         font-size: 14px;
+        color: #6B7280;
       }
       .pdf-name-modal-btns {
         display: flex;
@@ -189,9 +192,9 @@
       }
       .pdf-name-btn {
         flex: 1;
-        padding: 10px;
+        padding: 10px 0;
         border-radius: 8px;
-        font-size: 14px;
+        font-size: 16px;
         font-weight: 500;
         cursor: pointer;
         transition: all 0.2s;
@@ -218,7 +221,94 @@
       .pdf-name-btn-default:hover {
         background: #22C55E/90;
       }
-      /* 新增：辅助提示文字样式，统一视觉 */
+      /* 公告弹窗样式 - 电脑端扁长型减少空白，手机端适配美观 */
+      .notice-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.6);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        animation: fadeIn 0.3s ease;
+      }
+      .notice-modal-content {
+        background: white;
+        border-radius: 16px;
+        box-sizing: border-box;
+        /* 手机端：窄高型，适配小屏 */
+        width: 100%;
+        max-width: 400px;
+        padding: 24px 20px;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+        text-align: center;
+      }
+      /* 电脑端媒体查询：扁长型，左右宽上下窄，减少空白 */
+      @media (min-width: 768px) {
+        .notice-modal-content {
+          max-width: 600px; /* 左右拉长 */
+          padding: 20px 32px; /* 上下内边距减少，左右增加，减少空白 */
+        }
+      }
+      .notice-modal-title {
+        font-size: 28px;
+        font-weight: 700;
+        color: #1F2937;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+      }
+      .notice-modal-desc {
+        font-size: 17px;
+        color: #4B5563;
+        line-height: 1.8; /* 微调行高，减少上下空白 */
+        margin-bottom: 20px; /* 减少底部间距 */
+        text-align: left;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        word-break: keep-all;
+        hyphens: none;
+        padding: 0 2px;
+      }
+      .notice-modal-tips {
+        font-size: 14px;
+        color: #165DFF;
+        background: #F0F7FF;
+        padding: 10px 12px; /* 减少内边距 */
+        border-radius: 8px;
+        margin-bottom: 24px; /* 减少底部间距 */
+        text-align: left;
+      }
+      .notice-modal-btn {
+        width: 100%;
+        padding: 12px;
+        background: #165DFF;
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      .notice-modal-btn:hover {
+        background: #165DFF/90;
+      }
+      .notice-modal-btn:active {
+        background: #165DFF/80;
+      }
+      /* 弹窗淡入动画 */
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      /* 辅助提示文字样式，统一视觉 */
       .helper-tip {
         font-size: 10px;
         color: #9CA3AF;
@@ -229,9 +319,28 @@
   </style>
 </head>
 <body class="bg-gray-50 min-h-screen font-sans">
-  <div class="container mx-auto px-4 py-8 max-w-7xl">
+  <!-- 公告弹窗 - 每次刷新都显示，文案恢复并字 -->
+  <div id="noticeModal" class="notice-modal">
+    <div class="notice-modal-content">
+      <div class="notice-modal-title">
+        <i class="fa fa-bullhorn text-primary"></i>
+        公告
+      </div>
+      <div class="notice-modal-desc">
+本程序旨在减少客户等待时间，并减轻美工琐事工作量。
+可自行添加水印，但仍需和主管、经理报备！
+      </div>
+      <div class="notice-modal-tips">
+        <i class="fa fa-lightbulb-o mr-2"></i>
+        Tips：如遇到水印重叠，可通过水印角度调整
+      </div>
+      <button id="knowBtn" class="notice-modal-btn">我已了解</button>
+    </div>
+  </div>
+
+  <div class="container mx-auto px-4 py-6 max-w-7xl">
     <!-- 标题logo+文字 -->
-    <h1 class="text-[clamp(1.8rem,3vw,2.5rem)] font-bold text-center text-dark mb-8 flex items-center justify-center gap-4">
+    <h1 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold text-center text-dark mb-6 flex items-center justify-center gap-3">
       <img 
         src="https://s41.ax1x.com/2026/01/03/pZUjfv6.png" 
         alt="欧百娜logo" 
@@ -240,11 +349,11 @@
       水印处理工具
     </h1>
 
-    <!-- 主布局：左右分栏 -->
-    <div class="flex flex-col lg:flex-row gap-6 h-[calc(100vh-120px)]">
+    <!-- 主布局：移动端上下排列，取消固定高度与内部滚动 -->
+    <div class="flex flex-col lg:flex-row gap-6">
       <!-- 左侧：水印调整区 -->
-      <div class="lg:w-1/3 bg-white rounded-xl shadow-md p-6 flex flex-col gap-5 overflow-y-auto scrollbar-hide">
-        <h2 class="text-xl font-semibold text-dark border-b pb-3 flex items-center">
+      <div class="lg:w-1/3 bg-white rounded-xl shadow-md p-5 flex flex-col gap-5">
+        <h2 class="text-lg font-semibold text-dark border-b pb-3 flex items-center">
           <i class="fa fa-sliders text-primary mr-2"></i>水印参数设置
         </h2>
 
@@ -278,7 +387,7 @@
 采购产品质量证明使用</textarea>
         </div>
 
-        <!-- 水印大小：滑块+手动输入 双调节 -->
+        <!-- 水印大小：滑块+手动输入 双调节 → 默认10px -->
         <div>
           <label class="block text-sm font-medium text-secondary mb-2">
             水印大小：
@@ -286,7 +395,7 @@
               type="text" 
               id="size-input" 
               class="size-input" 
-              value="12"
+              value="10"
               maxlength="5"
             >
             <span class="text-primary"> px</span>
@@ -295,16 +404,17 @@
             type="range" 
             id="watermark-size" 
             min="1" 
-            value="12" 
+            max="100"
+            value="10" 
             step="1"
             class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary"
           >
         </div>
 
-        <!-- 水印倾斜角度 - 添加重合调整辅助提示 -->
+        <!-- 水印倾斜角度 → 默认-38° -->
         <div>
           <label for="watermark-rotate" class="block text-sm font-medium text-secondary mb-2">
-            水印倾斜角度：<span id="rotate-value" class="text-primary">-27</span> °
+            水印倾斜角度：<span id="rotate-value" class="text-primary">-38</span> °
             <span class="helper-tip">（若水印重合时可用此调整）</span>
           </label>
           <input 
@@ -312,7 +422,7 @@
             id="watermark-rotate" 
             min="-45" 
             max="45" 
-            value="-27" 
+            value="-38" 
             class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary"
           >
         </div>
@@ -348,10 +458,10 @@
         </div>
 
         <!-- 导出按钮区 -->
-        <div class="mt-4">
+        <div class="mt-2">
           <button 
             id="export-pdf" 
-            class="w-full bg-green-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-green-600/90 active:bg-green-600/80 transition-all flex items-center justify-center"
+            class="w-full bg-green-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-green-600/90 active:bg-green-600/80 transition-all flex items-center justify-center text-base"
             disabled
           >
             <i class="fa fa-file-pdf-o mr-2"></i> 合成PDF并导出
@@ -360,13 +470,13 @@
       </div>
 
       <!-- 右侧：图片预览区（编号编辑排序） -->
-      <div class="lg:w-2/3 bg-white rounded-xl shadow-md p-6 flex flex-col overflow-hidden">
-        <h2 class="text-xl font-semibold text-dark border-b pb-3 flex items-center justify-center">
+      <div class="lg:w-2/3 bg-white rounded-xl shadow-md p-5 flex flex-col">
+        <h2 class="text-lg font-semibold text-dark border-b pb-3 flex items-center justify-center">
           <i class="fa fa-eye text-primary mr-2"></i> 图片预览区（编辑编号调整导出顺序）
         </h2>
         <div 
           id="preview-container" 
-          class="flex-1 mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto scrollbar-hide p-2"
+          class="flex-1 mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-1"
           style="grid-auto-rows: min-content;"
         >
           <!-- 空状态居中 -->
@@ -380,12 +490,12 @@
   </div>
 
   <script>
-    // 全局变量
+    // 全局变量 → 水印默认值：size=10，rotate=-38
     const state = {
       uploadedImages: [], // 图片信息 { file, src, img, cardWrap, orderInput, imgShowWrap, sortNum, imgRatio: 宽高比, renderWH: 容器实际渲染宽高, scaleRatio: 预览容器/图片原始的缩放比例 }
       watermarkText: '仅限（xxxxx公司、单位）\n采购产品质量证明使用',
-      watermarkSize: 12,
-      watermarkRotate: -27,
+      watermarkSize: 10,
+      watermarkRotate: -38,
       watermarkOpacity: 15,
       watermarkCount: 4,
       isProcessing: false,
@@ -408,12 +518,18 @@
       watermarkCount: document.getElementById('watermark-count'),
       countValue: document.getElementById('count-value'),
       previewContainer: document.getElementById('preview-container'),
-      exportPdf: document.getElementById('export-pdf')
+      exportPdf: document.getElementById('export-pdf'),
+      // 公告弹窗元素
+      noticeModal: document.getElementById('noticeModal'),
+      knowBtn: document.getElementById('knowBtn')
     };
 
     // 初始化
     init();
     function init() {
+      // 初始化公告弹窗（移除本地存储判断，每次都显示）
+      initNoticeModal();
+      // 绑定原有事件
       bindEvents();
       updateCountText();
       calculateMaxPreviewWidth();
@@ -423,6 +539,32 @@
         resetImageContainerSize();
         renderAllWatermark();
       });
+    }
+
+    // 初始化公告弹窗 - 每次刷新都显示，移除本地存储逻辑
+    function initNoticeModal() {
+      // 强制显示弹窗，无需判断本地存储
+      el.noticeModal.style.display = 'flex';
+      // 修复：移除重复绑定，直接用原生click事件（解决关不掉核心bug）
+      el.knowBtn.onclick = closeNoticeModal;
+      // 点击弹窗空白处（遮罩层）关闭弹窗
+      el.noticeModal.onclick = (e) => {
+        if (e.target === el.noticeModal) {
+          closeNoticeModal();
+        }
+      };
+      // 阻止弹窗内容区域的点击事件冒泡到遮罩层
+      el.noticeModal.querySelector('.notice-modal-content').onclick = (e) => {
+        e.stopPropagation();
+      };
+    }
+
+    // 关闭公告弹窗的统一方法（仅隐藏，不记录本地存储）
+    function closeNoticeModal() {
+      el.noticeModal.style.opacity = 0;
+      setTimeout(() => {
+        el.noticeModal.style.display = 'none';
+      }, 300);
     }
 
     // 计算预览单列最大可用宽度（适配网格/内边距/间距）
@@ -741,8 +883,7 @@
       return configs;
     }
 
-    // ========== PDF命名弹窗 - 核心修改：互换直接导出和确认命名导出的顺序 ==========
-    // 显示PDF命名确认弹窗
+    // PDF命名弹窗 - 恢复原始简洁样式
     function showPdfNameModal() {
       if (state.isProcessing || state.uploadedImages.length === 0) return;
       // 移除已有弹窗（防止重复创建）
@@ -758,14 +899,14 @@
       // 弹窗标题
       const modalTitle = document.createElement('div');
       modalTitle.className = 'pdf-name-modal-title';
-      modalTitle.textContent = '是否需要命名pdf';
-      // 输入框容器
+      modalTitle.textContent = '请输入PDF文件名';
+      // 输入框容器（带边框，和原版本一致）
       const inputWrap = document.createElement('div');
       inputWrap.className = 'pdf-name-input-wrap';
       // 命名输入框
       const nameInput = document.createElement('input');
       nameInput.className = 'pdf-name-input';
-      nameInput.placeholder = '请输入pdf名称';
+      nameInput.placeholder = '请输入文件名';
       nameInput.maxLength = 50;
       // PDF后缀
       const suffix = document.createElement('span');
@@ -778,28 +919,28 @@
       const cancelBtn = document.createElement('button');
       cancelBtn.className = 'pdf-name-btn pdf-name-btn-cancel';
       cancelBtn.textContent = '取消';
-      // 确认命名导出按钮
-      const confirmBtn = document.createElement('button');
-      confirmBtn.className = 'pdf-name-btn pdf-name-btn-confirm';
-      confirmBtn.textContent = '确认命名导出';
-      // 直接导出按钮（不命名）- 移到右侧
+      // 直接导出按钮（原版本默认按钮，绿色）
       const defaultBtn = document.createElement('button');
       defaultBtn.className = 'pdf-name-btn pdf-name-btn-default';
       defaultBtn.textContent = '直接导出';
+      // 确认命名导出按钮
+      const confirmBtn = document.createElement('button');
+      confirmBtn.className = 'pdf-name-btn pdf-name-btn-confirm';
+      confirmBtn.textContent = '确认导出';
 
-      // 组装弹窗 - 核心：调整按钮顺序【取消 → 确认命名导出 → 直接导出】
+      // 组装弹窗（原版本按钮顺序：取消、直接导出、确认导出）
       inputWrap.appendChild(nameInput);
       inputWrap.appendChild(suffix);
       btnWrap.appendChild(cancelBtn);
-      btnWrap.appendChild(confirmBtn);
       btnWrap.appendChild(defaultBtn);
+      btnWrap.appendChild(confirmBtn);
       modalContent.appendChild(modalTitle);
       modalContent.appendChild(inputWrap);
       modalContent.appendChild(btnWrap);
       modal.appendChild(modalContent);
       document.body.appendChild(modal);
 
-      // 绑定弹窗事件（功能不变）
+      // 绑定弹窗事件
       cancelBtn.addEventListener('click', () => modal.remove());
       defaultBtn.addEventListener('click', () => {
         modal.remove();
@@ -811,16 +952,21 @@
           modal.remove();
           exportOriginalPdf(pdfName);
         } else {
-          alert('请输入pdf名称后再导出！');
+          alert('请输入PDF名称后再导出！');
           nameInput.focus();
         }
       });
+      // 回车确认导出
       nameInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') confirmBtn.click();
       });
+      // 点击遮罩层关闭弹窗
       modal.addEventListener('click', (e) => {
         if (e.target === modal) modal.remove();
       });
+      // 阻止内容区冒泡
+      modalContent.addEventListener('click', (e) => e.stopPropagation());
+      // 输入框自动聚焦
       nameInput.focus();
     }
 
